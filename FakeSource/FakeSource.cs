@@ -18,10 +18,12 @@ namespace FakeSource
     /// </summary>
     internal sealed class FakeSource : StatelessService
     {
-        string[] locations = new string[] { "Florence", "London", "New York", "Paris" };
+        private string[] locations = new string[] { "Florence", "London", "New York", "Paris" };
+
         public FakeSource(StatelessServiceContext context)
             : base(context)
-        { }
+        {
+        }
 
         /// <summary>
         /// Optional override to create listeners (e.g., TCP, HTTP) for this service replica to handle client or user requests.
@@ -39,12 +41,12 @@ namespace FakeSource
         protected override async Task RunAsync(CancellationToken cancellationToken)
         {
             long iterations = 0;
-            Random random = new Random();
+            var random = new Random();
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                PurchaseInfo message = new PurchaseInfo
+                var message = new PurchaseInfo
                 {
                     Time = DateTimeOffset.UtcNow,
                     Location = locations[random.Next(0, locations.Length)],
@@ -56,15 +58,13 @@ namespace FakeSource
                 try
                 {
                     while (!await client.LogPurchase(new IdempotentMessage<PurchaseInfo>(message)))
-                    {
                         await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
-                    }
                 }
                 catch
                 {
-
                 }
-                ServiceEventSource.Current.ServiceMessage(this.Context, "Working-{0}", ++iterations);
+
+                ServiceEventSource.Current.ServiceMessage(Context, "Working-{0}", ++iterations);
 
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }

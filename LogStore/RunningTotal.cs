@@ -13,15 +13,15 @@ namespace LogStore
         {
             var normalizedTime = time.ToUniversalTime();
             var newDay = normalizedTime.Date;
-            
-            var result = newDay > Day && Day != DateTime.MinValue ? 
-                new RunningTotal
+
+            var result = newDay > Day && Day != DateTime.MinValue
+                ? new RunningTotal
                 {
-                    Day=Day,
-                    Count=Count
-                } 
+                    Day = Day,
+                    Count = Count
+                }
                 : null;
-            if(newDay > Day) Day = newDay;
+            if (newDay > Day) Day = newDay;
             if (result != null) Count = value;
             else Count += value;
             return result;

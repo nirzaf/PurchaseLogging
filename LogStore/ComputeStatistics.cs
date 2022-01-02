@@ -14,9 +14,10 @@ namespace LogStore
 {
     public class ComputeStatistics : BackgroundService
     {
-        IReliableQueue<IdempotentMessage<PurchaseInfo>> queue;
-        IReliableStateManager stateManager;
-        ConfigurationPackage configurationPackage;
+        private IReliableQueue<IdempotentMessage<PurchaseInfo>> queue;
+        private IReliableStateManager stateManager;
+        private ConfigurationPackage configurationPackage;
+
         public ComputeStatistics(
             IReliableQueue<IdempotentMessage<PurchaseInfo>> queue,
             IReliableStateManager stateManager,
@@ -26,10 +27,11 @@ namespace LogStore
             this.stateManager = stateManager;
             this.configurationPackage = configurationPackage;
         }
-        protected async override Task ExecuteAsync(CancellationToken stoppingToken)
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            bool queueEmpty = false;
-            var delayString=configurationPackage.Settings.Sections["Timing"]
+            var queueEmpty = false;
+            var delayString = configurationPackage.Settings.Sections["Timing"]
                 .Parameters["MessageMaxDelaySeconds"].Value;
             var delay = int.Parse(delayString);
             var filter = await IdempotencyFilter.NewIdempotencyFilterAsync(
@@ -41,47 +43,47 @@ namespace LogStore
                 while (!queueEmpty && !stoppingToken.IsCancellationRequested)
                 {
                     RunningTotal finalDayTotal = null;
-                    using (ITransaction tx = stateManager.CreateTransaction())
+                    using (var tx = stateManager.CreateTransaction())
                     {
                         var result = await queue.TryDequeueAsync(tx);
-                        if (!result.HasValue) queueEmpty = true;
+                        if (!result.HasValue)
+                        {
+                            queueEmpty = true;
+                        }
                         else
                         {
-                            
                             var item = await filter.NewMessage<PurchaseInfo>(result.Value);
-                            if(item != null)
+                            if (item != null)
                             {
                                 var counter = await store.TryGetValueAsync(tx, item.Location);
-                                var newCounter = counter.HasValue ? 
-                                    new RunningTotal
+                                var newCounter = counter.HasValue
+                                    ? new RunningTotal
                                     {
-                                        Count=counter.Value.Count,
-                                        Day= counter.Value.Day
+                                        Count = counter.Value.Count,
+                                        Day = counter.Value.Day
                                     }
                                     : new RunningTotal();
                                 finalDayTotal = newCounter.Update(item.Time, item.Cost);
                                 if (counter.HasValue)
-                                    await store.TryUpdateAsync(tx, item.Location, 
+                                    await store.TryUpdateAsync(tx, item.Location,
                                         newCounter, counter.Value);
                                 else
                                     await store.TryAddAsync(tx, item.Location, newCounter);
                             }
-                            await tx.CommitAsync();
-                            if(finalDayTotal != null)
-                            {
-                                await SendTotal(finalDayTotal, item.Location);
-                            }
-                        }
 
+                            await tx.CommitAsync();
+                            if (finalDayTotal != null) await SendTotal(finalDayTotal, item.Location);
+                        }
                     }
                 }
+
                 await Task.Delay(100, stoppingToken);
                 queueEmpty = false;
             }
         }
+
         protected async Task SendTotal(RunningTotal total, string location)
         {
-            
         }
     }
 }

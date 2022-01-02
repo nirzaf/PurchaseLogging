@@ -23,7 +23,8 @@ namespace LogStore
     {
         public LogStore(StatefulServiceContext context)
             : base(context)
-        { }
+        {
+        }
 
         /// <summary>
         /// Optional override to create listeners (e.g., HTTP, Service Remoting, WCF, etc.) for this service replica to handle client or user requests.
@@ -36,17 +37,20 @@ namespace LogStore
         {
             return this.CreateServiceRemotingReplicaListeners<LogStore>();
         }
+
         private IReliableQueue<IdempotentMessage<PurchaseInfo>> LogQueue;
+
         public async Task<bool> LogPurchase(IdempotentMessage<PurchaseInfo> idempotentMessage)
         {
             if (LogQueue == null) return false;
-            using (ITransaction tx = this.StateManager.CreateTransaction())
+            using (var tx = StateManager.CreateTransaction())
             {
                 await LogQueue.EnqueueAsync(tx, idempotentMessage);
                 await tx.CommitAsync();
                 return true;
             }
         }
+
         /// <summary>
         /// This is the main entry point for your service replica.
         /// This method executes when this replica of your service becomes primary and has write status.
@@ -56,8 +60,8 @@ namespace LogStore
         {
             cancellationToken.ThrowIfCancellationRequested();
             LogQueue = await
-                this.StateManager
-                .GetOrAddAsync<IReliableQueue<IdempotentMessage<PurchaseInfo>>>("logQueue");
+                StateManager
+                    .GetOrAddAsync<IReliableQueue<IdempotentMessage<PurchaseInfo>>>("logQueue");
             var configurationPackage = Context
                 .CodePackageActivationContext
                 .GetConfigurationPackageObject("Config");
@@ -65,8 +69,8 @@ namespace LogStore
             var host = new HostBuilder()
                 .ConfigureServices((hostContext, services) =>
                 {
-                    services.AddSingleton(this.StateManager);
-                    services.AddSingleton(this.LogQueue);
+                    services.AddSingleton(StateManager);
+                    services.AddSingleton(LogQueue);
                     services.AddSingleton(configurationPackage);
                     services.AddHostedService<ComputeStatistics>();
                 })
