@@ -18,9 +18,22 @@ namespace LogStore
     /// </summary>
     internal sealed class LogStore : StatefulService, ILogStore
     {
+        private IReliableQueue<IdempotentMessage<PurchaseInfo>> LogQueue;
+
         public LogStore(StatefulServiceContext context)
             : base(context)
         {
+        }
+
+        public async Task<bool> LogPurchase(IdempotentMessage<PurchaseInfo> idempotentMessage)
+        {
+            if (LogQueue == null) return false;
+            using (var tx = StateManager.CreateTransaction())
+            {
+                await LogQueue.EnqueueAsync(tx, idempotentMessage);
+                await tx.CommitAsync();
+                return true;
+            }
         }
 
         /// <summary>
@@ -33,19 +46,6 @@ namespace LogStore
         protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
         {
             return this.CreateServiceRemotingReplicaListeners<LogStore>();
-        }
-
-        private IReliableQueue<IdempotentMessage<PurchaseInfo>> LogQueue;
-
-        public async Task<bool> LogPurchase(IdempotentMessage<PurchaseInfo> idempotentMessage)
-        {
-            if (LogQueue == null) return false;
-            using (var tx = StateManager.CreateTransaction())
-            {
-                await LogQueue.EnqueueAsync(tx, idempotentMessage);
-                await tx.CommitAsync();
-                return true;
-            }
         }
 
         /// <summary>

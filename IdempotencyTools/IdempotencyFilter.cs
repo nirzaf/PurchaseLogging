@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
-using System.Threading;
 
 namespace IdempotencyTools
 {
     public class IdempotencyFilter
     {
         private IReliableDictionary<Guid, DateTimeOffset> dictionary;
-        private int maxDelaySeconds;
         private DateTimeOffset lastClear;
+        private int maxDelaySeconds;
         private IReliableStateManager sm;
 
         private IdempotencyFilter()

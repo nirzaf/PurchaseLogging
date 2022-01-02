@@ -11,9 +11,9 @@ namespace LogStore
 {
     public class ComputeStatistics : BackgroundService
     {
+        private ConfigurationPackage configurationPackage;
         private IReliableQueue<IdempotentMessage<PurchaseInfo>> queue;
         private IReliableStateManager stateManager;
-        private ConfigurationPackage configurationPackage;
 
         public ComputeStatistics(
             IReliableQueue<IdempotentMessage<PurchaseInfo>> queue,
